@@ -1,0 +1,104 @@
+---
+title: "xpod origins"
+author: "Charlie Soeder"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: 
+    number_sections: yes
+    toc: yes
+    toc_depth: 5
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_knit$set(root.dir = '/proj/cdjones_lab/csoeder/Human-Denovo-Polymorphs')
+knitr::opts_knit$set(root.dir = '/Users/csoeder/Research/Human_deNovo/Human-Denovo-Polymorphs')
+#knitr::opts_knit$set(root.dir=peaDubDee)
+#library("ggbio")
+#library("biomaRt")
+#library("org.Dm.eg.db")
+library("yaml")
+library("readr")
+library("tidyverse")
+library("gt")
+library("bib2df")
+library("magrittr")
+library("UpSetR")
+library("grid")
+
+```
+
+
+
+```{r echo=FALSE, include=FALSE, message=FALSE}
+
+
+#tbl_cnt <- tbl_cnt + 1
+#thing.gt <- asdfasdfasdf
+#thing.gt
+#write(thing.gt %>%  as_raw_html(), paste("results/tables/tbl",tbl_cnt,"_thing.html", sep=""))
+
+
+```
+
+```{r echo=FALSE, include=FALSE, message=FALSE}
+
+
+# fig_cnt <- fig_cnt + 1
+# thing.gg <- asdfasdfasd
+# thing.gg
+# png(height =  500, width = 800, filename = paste("results/figures/fig",fig_cnt,"_ong.png", sep=""))
+# thing.gg
+# dev.off()
+# 
+
+```
+
+
+
+```{r include=FALSE}
+
+human_readable_croncher <- function(num_in) {
+	dig <- 3
+	num_out <- formatC(num_in, digits=dig, format='g') %>% as.numeric() %>% sitools::f2si()
+	return(num_out)
+}
+
+bam_summary_loader <- function(filename, aligner="mapsplice", reference='dm6'){
+	
+	tmp.df <- read_delim(filename, "\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE)
+	names(tmp.df) <- c("sample","measure","value")
+	
+	tmp.df$sample <- as.factor(tmp.df$sample)
+	tmp.df$measure <- as.factor(tmp.df$measure)
+	tmp.df$aligner <- as.factor(aligner)
+	tmp.df$reference <- as.factor(reference)
+	
+	return(tmp.df)
+	
+}
+
+
+fmt_citation <- function(bibtex_in) {
+	bibdf <- bib2df::bib2df(bibtex_in,separate_names = TRUE)
+
+	bibdf.unnest <- bibdf  %>% unnest(cols=c("AUTHOR"))
+	bibdf.counts <- bibdf.unnest %>% group_by(BIBTEXKEY) %>% summarise(num_auth = n())
+
+	bibdf.rejoin <- inner_join(bibdf.unnest, bibdf.counts, by=c("BIBTEXKEY"="BIBTEXKEY"))
+
+	bibdf.join <- rbind( bibdf.rejoin %>% filter(num_auth == 1 )%>% ungroup() %>% select(c("BIBTEXKEY", "full_name", "YEAR")),bibdf.rejoin %>% filter(num_auth == 2 ) %>% group_by(BIBTEXKEY) %>% mutate(full_name =paste0(full_name, collapse = " & ")) %>% ungroup() %>% select(c("BIBTEXKEY","full_name", "YEAR")),bibdf.rejoin %>% filter(num_auth > 2 )%>% group_by(BIBTEXKEY) %>% summarise(first_auth = head(full_name, 1), full_name=paste(first_auth, "et al. "), YEAR=unique(YEAR)) %>% ungroup() %>% select(c("BIBTEXKEY","full_name", "YEAR"))) %>% ungroup() %>% mutate(cite = paste(full_name, YEAR, sep = " "))  %>% select(c(BIBTEXKEY, cite)) %>%  unique()# %>% group_by(BIBTEXKEY) %>% summarise(citation = paste0(cite, collapse = "; ")) %>% ungroup()
+
+	return(bibdf.join)
+}
+fig_cnt <- 0
+tbl_cnt <- 0
+
+
+#marty <- useDataset("dmelanogaster_gene_ensembl",  useMart("ensembl",  host = "useast.ensembl.org") )
+#G_list <- getBM(attributes= c("flybase_gene_id", "external_gene_name"), mart= marty) 
+```
+
+

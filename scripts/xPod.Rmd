@@ -1,0 +1,292 @@
+---
+title: "XPOD"
+author: "Charlie Soeder"
+date: "2/3/2020"
+output:
+  pdf_document: 
+    number_sections: yes
+    toc: yes
+    toc_depth: 5
+  html_document: default
+bibliography: references.bib
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_knit$set(root.dir = '/proj/cdjones_lab/csoeder/xenop/')
+knitr::opts_knit$set(root.dir = '/Users/csoeder/Research/xenop/')
+#knitr::opts_knit$set(root.dir=peaDubDee)
+#library("ggbio")
+#library("biomaRt")
+#library("org.Dm.eg.db")
+library("yaml")
+library("readr")
+library("tidyverse")
+library("gt")
+library("bib2df")
+library("magrittr")
+library("UpSetR")
+library("grid")
+
+```
+
+
+
+```{r echo=FALSE, include=FALSE, message=FALSE}
+
+
+#tbl_cnt <- tbl_cnt + 1
+#thing.gt <- asdfasdfasdf
+#thing.gt
+#write(thing.gt %>%  as_raw_html(), paste("results/tables/tbl",tbl_cnt,"_thing.html", sep=""))
+
+
+```
+
+```{r echo=FALSE, include=FALSE, message=FALSE}
+
+
+# fig_cnt <- fig_cnt + 1
+# thing.gg <- asdfasdfasd
+# thing.gg
+# png(height =  500, width = 800, filename = paste("results/figures/fig",fig_cnt,"_ong.png", sep=""))
+# thing.gg
+# dev.off()
+# 
+
+```
+
+
+
+```{r include=FALSE}
+
+human_readable_croncher <- function(num_in) {
+	dig <- 3
+	num_out <- formatC(num_in, digits=dig, format='g') %>% as.numeric() %>% sitools::f2si()
+	return(num_out)
+}
+
+bam_summary_loader <- function(filename, aligner="mapsplice", reference='dm6'){
+	
+	tmp.df <- read_delim(filename, "\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE)
+	names(tmp.df) <- c("sample","measure","value")
+	
+	tmp.df$sample <- as.factor(tmp.df$sample)
+	tmp.df$measure <- as.factor(tmp.df$measure)
+	tmp.df$aligner <- as.factor(aligner)
+	tmp.df$reference <- as.factor(reference)
+	
+	return(tmp.df)
+	
+}
+
+
+fmt_citation <- function(bibtex_in) {
+	bibdf <- bib2df::bib2df(bibtex_in,separate_names = TRUE)
+
+	bibdf.unnest <- bibdf  %>% unnest(cols=c("AUTHOR"))
+	bibdf.counts <- bibdf.unnest %>% group_by(BIBTEXKEY) %>% summarise(num_auth = n())
+
+	bibdf.rejoin <- inner_join(bibdf.unnest, bibdf.counts, by=c("BIBTEXKEY"="BIBTEXKEY"))
+
+	bibdf.join <- rbind( bibdf.rejoin %>% filter(num_auth == 1 )%>% ungroup() %>% select(c("BIBTEXKEY", "full_name", "YEAR")),bibdf.rejoin %>% filter(num_auth == 2 ) %>% group_by(BIBTEXKEY) %>% mutate(full_name =paste0(full_name, collapse = " & ")) %>% ungroup() %>% select(c("BIBTEXKEY","full_name", "YEAR")),bibdf.rejoin %>% filter(num_auth > 2 )%>% group_by(BIBTEXKEY) %>% summarise(first_auth = head(full_name, 1), full_name=paste(first_auth, "et al. "), YEAR=unique(YEAR)) %>% ungroup() %>% select(c("BIBTEXKEY","full_name", "YEAR"))) %>% ungroup() %>% mutate(cite = paste(full_name, YEAR, sep = " "))  %>% select(c(BIBTEXKEY, cite)) %>%  unique()# %>% group_by(BIBTEXKEY) %>% summarise(citation = paste0(cite, collapse = "; ")) %>% ungroup()
+
+	return(bibdf.join)
+}
+fig_cnt <- 0
+tbl_cnt <- 0
+
+
+#marty <- useDataset("dmelanogaster_gene_ensembl",  useMart("ensembl",  host = "useast.ensembl.org") )
+#G_list <- getBM(attributes= c("flybase_gene_id", "external_gene_name"), mart= marty) 
+```
+
+
+# Introduction
+
+Explain motivation, overview
+
+@Yoshii2011
+@Kurrle2020
+
+
+# Materials, Methods, Data, Software
+
+```{r include=FALSE}
+
+trammel <- read_yaml("config.yaml")
+
+```
+
+## Reference Genomes
+```{r include=FALSE, echo=FALSE}
+ref_genomes.cfg.df <- plyr::ldply(trammel$reference_genomes, data.frame)
+
+reference_genomes_summaryStats <- read_delim("summaries/reference_genomes.summary", "\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE)
+
+names(reference_genomes_summaryStats) <- c("refGenome","measure","value")
+```
+
+
+
+
+
+## Sequenced Reads
+
+```{r include=FALSE}
+data_sets.df <- plyr::ldply(trammel$data_sets, data.frame)
+
+
+
+
+
+# data_sets.df$name <- as.factor(data_sets.df$name)
+# data_sets.df$paired<- as.factor(data_sets.df$paired)
+# data_sets.df$experimental<- as.factor(data_sets.df$experimental)
+# data_sets.df$species<- as.factor(data_sets.df$species)
+# data_sets.df$source<- as.factor(data_sets.df$source)
+
+
+
+
+data_sets.df.sparse <- data_sets.df %>% select(-c(starts_with("readsfile"), "SRA", "path")) %>% filter(subgroups=="all") %>% distinct() 
+
+#data_sets.df.sparse.collapse <- data_sets.df.sparse %>% group_by(name) %>%  mutate(genotype = paste0(as.character(genotype), collapse = "," ))  %>% distinct()
+#data_sets.df.sparse.collapse$genotype <- as.factor(data_sets.df.sparse.collapse$genotype)
+
+WGS.counts.tbl  <- data_sets.df.sparse %>% filter(molecule=="DNA") %>% group_by(species, sex) %>% summarise(sample_count=n())
+
+
+```
+
+```{r echo=FALSE, include=FALSE, message=FALSE}
+
+
+tbl_cnt <- tbl_cnt + 1
+sequenced_counts.DNA.gt <- WGS.counts.tbl %>% ungroup()%>% gt() %>% tab_header(title=paste("Table ",tbl_cnt, ". WGS Samples Downloaded from NCBI", sep = ""), subtitle="counts by species") %>%   fmt_number(columns = vars(sample_count),suffixing = TRUE, decimals=0) %>% cols_label( sample_count="number sequenced")
+
+sequenced_counts.DNA.gt
+#write(sequenced_counts.gt %>%  as_raw_html(), paste("results/tables/tbl",tbl_cnt,"_sequencedSampleCount.html", sep=""))
+
+
+```
+
+
+
+
+### Pre-processing
+
+```{r echo=FALSE, include=FALSE}
+fastp_summary <- read_delim("summaries/sequenced_reads.dat", "\t", escape_double = FALSE, col_names = FALSE, trim_ws = TRUE)
+names(fastp_summary ) <- c("name","type","measure","value")
+fastp_summary$name <- as.factor(fastp_summary$name)
+fastp_summary$type <- as.factor(fastp_summary$type)
+fastp_summary$measure <- as.factor(fastp_summary$measure)
+```
+
+```{r echo=FALSE, include=FALSE}
+filtration_stats <- inner_join(fastp_summary %>%  filter(type=="prefiltered" | type == 'postfiltered'), data_sets.df.sparse, by=c("name"="name"))
+filtration_stats$type <- factor(filtration_stats$type, levels=c("prefiltered", "postfiltered"))
+```
+
+These reads were preprocessed with FASTP [@Chen2018] for quality control and analytics. 
+
+Starting FASTQ files contained a total of  $`r sum( filtration_stats %>% filter(type =='prefiltered') %>%  filter(measure=='total_reads') %>% select(value) ) %>% human_readable_croncher() `$ reads; after QC, this dropped to $`r sum( filtration_stats %>% filter(type =='postfiltered') %>%  filter(measure=='total_reads') %>% select(value) ) %>% human_readable_croncher() `$. 
+
+```{r echo=FALSE}
+pre_post_counts <- filtration_stats %>% filter(measure=='total_reads') %>%  group_by(type)  %>%  summarise(minimum = min(value), average=mean(value) , maximum = max(value)) 
+retention_percent <- filtration_stats %>% filter(measure=='total_reads') %>% select(c(name,type,value)) %>%  spread(type,value) %>% mutate(retention=100*postfiltered/prefiltered) %>%  summarise(type='percent retention', minimum = min(retention), average=mean(retention) , maximum = max(retention))
+```
+
+```{r echo=FALSE}
+
+read_retention_rate.gt <- rbind(pre_post_counts, retention_percent)  %>% gt() %>% tab_header(title=paste("Table ",tbl_cnt, ". Read Retention Rate during Preprocessing", sep = ""), subtitle= md("&nbsp;")) %>%  fmt_number(columns = vars(minimum, average,maximum),rows = type!="percent_retention",suffixing = TRUE, decimals=0) %>% fmt_percent(columns = vars(minimum, average,maximum),rows = type=="percent_retention", decimals=1) %>% cols_label(type=" ") 
+
+read_retention_rate.gt
+
+#write(read_retention_rate.gt %>%  as_raw_html(), paste("results/tables/tbl",tbl_cnt,"_readRetentionRatePreprocessing.html", sep=""))
+
+```
+
+Filtration also increased the read quality, as seen in the increase in the fraction of reads with an average quality score > 30:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+fig_cnt <- fig_cnt + 1
+
+readQual.gg <- ggplot(filtration_stats %>% filter(measure == "q30_rate")) + geom_line(aes(group=name, x=type,y=100*value)) +  geom_point(aes(x=type, y = 100*value, color=species, shape=sex)) + labs(title = paste("Figure ",fig_cnt, ". Percent of Reads with a mean QUAL > 30", sep = ""), y="Percent QUAL > 30", x="") + theme_bw() #+ geom_text(data= . %>% filter(type=="postfiltered") %>% filter(value<0.97), aes(type,100*value,label=name))
+
+readQual.gg
+#png(height =  500, width = 800, filename = paste("results/figures/fig",fig_cnt,"_readQualityThruProcessing.png", sep=""))
+#readQual.gg
+#dev.off()
+
+
+```
+
+Duplicate reads were also detected; these will be filtered during alignment:
+
+Duplicate reads were also detected
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dupe_stats <- inner_join(fastp_summary %>% filter(type=='duplication' & measure =='rate') %>%  mutate(percent=value) %>% select(c(name,percent)), data_sets.df.sparse, by=c("name"="name"))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tbl_cnt <- tbl_cnt + 1
+
+duplicationStats.gt <- dupe_stats %>%  summarise(minimum = min(percent), average=mean(percent), median=median(percent) , maximum = max(percent)) %>% gt() %>% tab_header(title=paste("Table ",tbl_cnt, ". Percentage Duplication", sep = ""), subtitle="FASTP estimate") %>% fmt_percent(columns=vars(minimum,median,average,maximum), decimals=1, ) #kable(caption="Percentage Duplication",digits=1)
+
+duplicationStats.gt
+
+#write(duplicationStats.gt %>%  as_raw_html(), paste("results/tables/tbl",tbl_cnt,"_duplicationStats.html", sep=""))
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+fig_cnt <- fig_cnt + 1
+
+dupeStats.gg <- ggplot(dupe_stats) + geom_histogram(aes(x=100*percent, fill=species), bins=15) + labs(title=paste("Figure ",fig_cnt, ". Duplication Histogram (FASTP estimate)", sep = ""), x="Read Duplication Rate (percent)", y="Number Samples") + theme_bw()
+
+dupeStats.gg
+#png(height =  500, width = 800, filename = paste("results/figures/fig",fig_cnt,"_readDuplicationRate.png", sep=""))
+#dupeStats.gg
+#dev.off()
+
+
+```
+
+## Genome Assembly
+
+SPADES [@Bankevich2012] was used to assemble genomes from the WGS reads used above. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

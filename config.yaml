@@ -1,0 +1,110 @@
+reference_genomes:
+    - name: xenTro9
+      species: Xenopus tropicalis
+      path: /proj/cdjones_lab/Genomics_Data_Commons/genomes/xenopus_tropicalis/xenTro9.fa
+      fai: /proj/cdjones_lab/Genomics_Data_Commons/genomes/xenopus_tropicalis/xenTro9.fa.fai
+#      bowtie: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_bowtie/hg38
+#      bowtie2: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_bowtie2/hg38
+#      split: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_split/
+#      link: ftp://hgdownload.soe.ucsc.edu/goldenPath/xenTro9/bigZips/xenTro9.fa.gz
+      source: UCSC Genome Browser
+#      scrubString: random\|alt\|Un
+
+
+
+data_sets:
+    - name: xLae1
+      path: FASTQ/WGS/xLae1/
+      paired: True
+      readsfile1: SRR3210978_1.fastq
+      readsfile2: SRR3210978_2.fastq
+      sex: F
+      genus: xenopus
+      species: [laevis,]
+      subspecies: [J,]
+      molecule: DNA
+      protocol: WGS
+      platform: illumina
+      SRA: SRR3210978
+      subgroups: [all,]
+    - name: xLae2
+      path: FASTQ/WGS/xLae2/
+      paired: True
+      readsfile1: SRR3210977_1.fastq
+      readsfile2: SRR3210977_2.fastq
+      sex: F
+      genus: xenopus
+      species: [laevis,]
+      subspecies: [J,]
+      molecule: DNA
+      protocol: WGS
+      platform: illumina
+      SRA: SRR3210977
+      subgroups: [""]
+    - name: xLae3
+      path: FASTQ/WGS/xLae3/
+      paired: True
+      readsfile1: SRR3210976_1.fastq
+      readsfile2: SRR3210976_2.fastq
+      sex: F
+      genus: xenopus
+      species: [laevis,]
+      subspecies: [J,]
+      molecule: DNA
+      protocol: WGS
+      platform: illumina
+      SRA: SRR3210976
+      subgroups: [all,]
+
+    - name: xTro1
+      path: FASTQ/WGS/xTro1/
+      readsfile: SRR9439208.fastq
+      sex: F
+      genus: xenopus
+      species: [tropicalis,]
+      subspecies: [J,]
+      molecule: DNA
+      protocol: WGS
+      platform: genetic analyzer
+      SRA: SRR9439208
+      subgroups: [all,]
+      paired: False
+    - name: xTro2
+      path: FASTQ/WGS/xTro2/
+      readsfile: SRR12031347.fastq
+      genus: xenopus
+      species: [tropicalis,]
+      subspecies: [J,]
+      molecule: DNA
+      protocol: WGS
+      platform: pacbio
+      SRA: SRR12031347
+      subgroups: [none,]
+      paired: False
+    - name: xTro3
+      path: FASTQ/WGS/xTro3/
+      paired: False
+      readsfile: SRR9455582.fastq
+      genus: xenopus
+      species: [tropicalis,]
+      subspecies: [J,]
+      molecule: DNA
+      protocol: WGS
+      platform: pacbio
+      SRA: SRR9455582
+      subgroups: [none,]
+    - name: xTro4
+      path: FASTQ/WGS/xTro4/
+      paired: False
+      readsfile: SRR9439208.fastq
+      genus: xenopus
+      species: [tropicalis,]
+      subspecies: [J,]
+      molecule: DNA
+      protocol: WGS
+      platform: illumina
+      SRA: SRR9439208
+      subgroups: [all,]
+
+
+
