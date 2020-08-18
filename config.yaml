@@ -1,12 +1,24 @@
 reference_genomes:
     - name: xenTro9
-      species: Xenopus tropicalis
+      genus: Xenopus
+      species: tropicalis
       path: /proj/cdjones_lab/Genomics_Data_Commons/genomes/xenopus_tropicalis/xenTro9.fa
       fai: /proj/cdjones_lab/Genomics_Data_Commons/genomes/xenopus_tropicalis/xenTro9.fa.fai
 #      bowtie: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_bowtie/hg38
 #      bowtie2: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_bowtie2/hg38
 #      split: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_split/
 #      link: ftp://hgdownload.soe.ucsc.edu/goldenPath/xenTro9/bigZips/xenTro9.fa.gz
+      source: UCSC Genome Browser
+#      scrubString: random\|alt\|Un
+    - name: xenLae2
+      genus: Xenopus
+      species: laevis
+      path: /proj/cdjones_lab/Genomics_Data_Commons/genomes/xenopus_laevis/xenLae2.fa
+      fai: /proj/cdjones_lab/Genomics_Data_Commons/genomes/xenopus_laevis/xenLae2.fa.fai
+#      bowtie: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_bowtie/hg38
+#      bowtie2: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_bowtie2/hg38
+#      split: /proj/cdjones_lab/Genomics_Data_Commons/genomes/homo_sapiens/hg38/hg38_split/
+      link: ftp://hgdownload.soe.ucsc.edu/goldenPath/xenLae2/bigZips/xenLae2.fa.gz
       source: UCSC Genome Browser
 #      scrubString: random\|alt\|Un
 

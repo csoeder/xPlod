@@ -1,8 +1,9 @@
 configfile: 'config.yaml'
-#	module load bedtools samtools sratoolkit/2.9.6 python/3.6.6 blast spades
+#	module load bedtools samtools sratoolkit/2.9.6 python/3.6.6 blast spades quast r blat fastx_toolkit
 
 sample_by_name = {c['name'] : c for c in config['data_sets']}
 ref_genome_by_name = { g['name'] : g for g in config['reference_genomes']}
+ref_genome_by_species = { g['species'] : g for g in config['reference_genomes']}
 
 
 sra_by_name = {}
@@ -66,17 +67,22 @@ def return_file_relpath_by_sampname(wildcards):
 rule reference_genome_reporter:
 	input:
 		fai_in = lambda wildcards: ref_genome_by_name[wildcards.ref_gen]['fai'],
+		fa_in = lambda wildcards: ref_genome_by_name[wildcards.ref_gen]['path'],
+
 	output:
-		report_out = "summaries/reference_genomes/{ref_gen}.fai.report"
+		report_out = "summaries/reference_genomes/{ref_gen}.fai.report",
+		quast_out = "summaries/reference_genomes/quast/{ref_gen}/report.tsv",
 	params:
 		runmem_gb=1,
 		runtime="5:00",
 		cores=1,
 		clust_misc="",
+		quast_params  = " --eukaryote ",
 	shell:
 		"""
-		mkdir -p summaries/reference_genomes/
+		mkdir -p summaries/reference_genomes/quast/{wildcards.ref_gen}/
 		cat {input.fai_in} | awk '{{sum+=$2}} END {{ print "number_contigs\t",NR; print "number_bases\t",sum}}' | sed -e 's/^/{wildcards.ref_gen}\t/g' > {output.report_out};
+		quast.py  {params.quast_params} --output-dir summaries/reference_genomes/quast/{wildcards.ref_gen}/ {input.fa_in} 
 		"""
 
 rule summon_reference_genome_summary:
@@ -91,6 +97,43 @@ rule summon_reference_genome_summary:
 		clust_misc="",
 	shell:
 		"cat {input.refgen_reports} > {output.refgen_summary}"
+
+
+##########################	SEARCH IN VAIN FOR THE SEQUENCE 	###########################
+##########################	IN THE REFERENCE GENOMES	###########################
+
+rule sourceESTblatterUp:
+	input:
+		ests = "utils/source_ESTs.fa",
+	output:
+		raw_blat = "scans/background/source_ESTs.blat.vs_{ref_gen}.mapt.psl",
+		raw_covBed = "scans/background/source_ESTs.blat.vs_{ref_gen}.mapt.queryCoverage.bed",
+
+		filtered_blat = "scans/background/source_ESTs.blat.vs_{ref_gen}.mapt.filt.psl",
+		filtered_covbed = "scans/background/source_ESTs.blat.vs_{ref_gen}.mapt.filt.queryCoverage.bed",
+	params:
+		runmem_gb=16,
+		runtime="24:00:00",
+		cores=8,
+		match_thresh = 50,#75 bases must match
+		match_frac = 0.50,#75% of query must align
+	message:
+		"blatting source_ESTs against reference_genome {wildcards.ref_gen} .... "
+	run:
+		shell("""mkdir -p scans/background/""")
+		ref_gen = ref_genome_by_name[wildcards.ref_gen]["path"]
+		shell(""" blat -noHead {ref_gen} {input.ests} {output.raw_blat}; """)
+		shell(""" cat {output.raw_blat}| awk '{{if(($1)>{params.match_thresh})print;}}' | awk '{{if(($13-$12)/$11>{params.match_frac})print;}}' |  > {output.filtered_blat} """)
+#		shell(""" ~/modules/UCSC_utils/pslToBed {output.filtered_transcriptome_blat} {output.transcriptome_bed} """)
+#		shell(""" cat {input.transcriptome_in} | fasta_formatter -t | grep -wFf <( cat {output.raw_transcriptome_blat} | cut -f 10 | sort | uniq ) | awk '{{print">"$0}}' | tr "\t" "\n" > {output.mappable_seqs}; """)
+#		shell(""" cat {input.transcriptome_in} | fasta_formatter -t | grep -wFf <( cat {output.filtered_transcriptome_blat} | cut -f 10 | sort | uniq ) | awk '{{print">"$0}}' | tr "\t" "\n" > {output.filtered_mappable_seqs}; """)
+
+		shell("""cat {output.raw_blat} | awk '{{print$10,$12,$13,$14,$1,$9}}' | tr " " "\t" > {output.raw_covBed}""")
+		shell("""cat {output.filtered_blat} | awk '{{print$10,$12,$13,$14,$1,$9}}' | tr " " "\t" > {output.filtered_covbed}""")
+
+
+
+
 
 
 ##########################	GATHER SEQUENCED READS 	###########################
@@ -141,28 +184,6 @@ rule summon_reads_SRA_se:
 			raise KeyError("Sample is listed as empirical but no reads found and no SRA to download!" )
 
 
-# rule fastp_clean_sample_pe:
-# 	input:
-# 		fileIn = lambda wildcards: return_file_relpath_by_sampname(wildcards)
-# 	output:
-# 		fileOut = ["{pathprefix}/{samplename}.clean.R1.fastq","{pathprefix}/{samplename}.clean.R2.fastq"],
-# 		jason = "{pathprefix}/{samplename}.json"
-# 	params:
-# 		runmem_gb=8,
-# 		runtime="6:00:00",
-# 		cores=1,
-# 		clust_misc="",
-# 		#--trim_front1 and -t, --trim_tail1
-# 		#--trim_front2 and -T, --trim_tail2. 
-# 		common_params = "--json {pathprefix}/{samplename}.json",# --html meta/FASTP/{samplename}.html", 
-# 		pe_params = "--detect_adapter_for_pe --correction",
-# 	message:
-# 		"FASTP QA/QC on paired-ended reads ({wildcards.samplename}) in progress.... "
-# 	shell:
-# 		"/nas/longleaf/home/csoeder/modules/fastp/fastp {params.common_params} {params.pe_params} --in1 {input.fileIn[0]} --out1 {output.fileOut[0]} --in2 {input.fileIn[1]} --out2 {output.fileOut[1]}"
-
-
-
 rule fastp_clean_sample_se:
 	input:
 		fileIn = lambda wildcards: return_file_relpath_by_sampname(wildcards)
@@ -202,31 +223,6 @@ rule fastp_clean_sample_pe:
 	shell:
 		"/nas/longleaf/home/csoeder/modules/fastp/fastp {params.common_params} {params.pe_params} --in1 {input.fileIn[0]} --out1 {output.fileOut[0]} --in2 {input.fileIn[1]} --out2 {output.fileOut[1]}"
 
-
-
-
-
-
-
-
-
-# rule FASTP_summarizer:
-# 	input: 
-# 		jason = lambda wildcards: expand("{path}{samp}.json", path=sample_by_name[wildcards.samplename]['path'], samp = wildcards.samplename, )
-# 	output:
-# 		jason_pruned = "summaries/FASTP/{samplename}.json.pruned"
-# 	params:
-# 		runmem_gb=1,
-# 		runtime="5:00",
-# 		cores=1,
-# 		clust_misc="",
-# 	message:
-# 		"Summarizing reads for sample ({wildcards.samplename}) .... "	
-# 	shell:
-# 		"""
-# 		cp {input.jason} summaries/FASTP/{wildcards.samplename}.json
-# 		python3 scripts/fastp_reporter.py {input.jason} {output.jason_pruned} -t {wildcards.samplename}
-# 		"""
 
 rule FASTP_summarizer:
 	input: 
@@ -298,6 +294,50 @@ rule spades_assembler:
 
 
 
+rule assembly_quasticator:
+	input: 
+		assemble_in = "genome_assemblies/spades/{sample}/{sample}.spades.scaffolds.fa"
+	output:
+		quast_out = "genome_assemblies/spades/{sample}/quast/report.tsv"
+	params:
+		runmem_gb=64,
+		runtime="32:00:00",
+		cores=1,
+		quast_params  = " --eukaryote  --fragmented --conserved-genes-finding --no-html --no-plots ",
+	message:
+		"Summarizing reads for sample ({wildcards.sample}) .... "	
+	run:
+		sample_stuff = sample_by_name[wildcards.sample]
+		if sample_stuff["paired"]:
+			read_str = " -1 %s%s -2 %s%s " % tuple([sample_stuff["path"],sample_stuff["readsfile1"],sample_stuff["path"],sample_stuff["readsfile2"]])
+		elif sample_stuff["platform"] == "pacbio":
+			read_str = " --pacbio %s%s " % tuple([sample_stuff["path"],sample_stuff["readsfile"]])
+		elif sample_stuff["platform"] == "nanopore":
+			read_str = " --nanopore %s%s " % tuple([sample_stuff["path"],sample_stuff["readsfile"]])
+		else: 
+			read_str = " --single %s%s " % tuple([sample_stuff["path"],sample_stuff["readsfile"]])
+		ref_gen = ref_genome_by_species[sample_stuff["species"][0]]["path"]
+		shell(""" quast.py -r {ref_gen} {params.quast_params} {read_str} --output-dir genome_assemblies/spades/{wildcards.sample}/quast/ {input.assemble_in}  """)
+
+
+rule quasticate_everything:
+	input: 
+		quasts = lambda wildcards: expand( "genome_assemblies/spades/{sample}/quast/report.tsv", sample=sampname_by_group['all'] )
+	output:
+		quast_out = "summaries/genome_assembly.summary"
+	params:
+		runmem_gb=8,
+		runtime="5:00",
+		cores=1,
+	message:
+		"quasitcating....... .... "	
+	run:
+		for samp in sampname_by_group['all']:
+			shell(""" cat genome_assemblies/spades/{sample}/quast/report.tsv | awk '{{print"{sample}\t"$0}}' > {output.quast_out} """)
+#	add -r for genome reference??
+
+
+
 rule make_blastDB_from_genome:
 	input:
 		genome_in = "genome_assemblies/spades/{sample}/{sample}.spades.scaffolds.fa"
@@ -323,26 +363,44 @@ rule scan_assemblies_for_xpod:
 		blastdb_flag = "utils/flags/blastdb_made/genome_assemblies/{sample}/{sample}.spades.scaffolds.blastdbmade.flag"
 
 	output:
-		pept_out ="genome_assemblies/spades/{sample}/{sample}.peptBLAST.out",
-		nucl_out = "genome_assemblies/spades/{sample}/{sample}.nuclBLAST.out"
+		pept_out = "scans/assemblies/spades/{sample}.peptBLAST.out",
+		nucl_out = "scans/assemblies/spades/{sample}.nuclBLAST.out",
+		est_out = "scans/assemblies/spades/{sample}.estBLAST.out",
+
+		nucl_qCov = "scans/assemblies/spades/{sample}.nuclBLAST.queryCoverage.bed",
+		est_qCov = "scans/assemblies/spades/{sample}.estBLAST.queryCoverage.bed",
+
 	params:
 		runmem_gb=8,
 		runtime="1:00:00",
 		cores=1,
-		clust_misc=""#--cpus-per-task=%s --partition=bigmem --qos bigmem_access" %tuple([8])#[params.cpus_per_task]),
+		clust_misc="",#--cpus-per-task=%s --partition=bigmem --qos bigmem_access" %tuple([8])#[params.cpus_per_task]),
+		evalue = 2,
+
 	message:
 		"Collecting read summaries for all samples ...."
 	run:
-		shell("""tblastn -query utils/xpod.pept.fa -db {input.genome_in} -outfmt 6 > {output.pept_out} """)
-		shell("""blastn -query utils/xpod.nucl.fa -db {input.genome_in} -outfmt 6 > {output.nucl_out} """)
+		shell(""" mkdir -p scans/assemblies/spades/ """)
+		shell("""tblastn -query utils/xpod.pept.fa -db {input.genome_in} -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sstrand" -evalue {params.evalue} > {output.pept_out} """)
+		
+		shell("""blastn -query utils/xpod.nucl.fa -db {input.genome_in} -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sstrand" -evalue {params.evalue} > {output.nucl_out} """)
+		shell("""cat {output.nucl_out} | awk '{{print$1,$7,$8,$2,$12,$13}}' | tr " " "\t" | sed -e 's/plus/+/g' | sed -e 's/minus/-/g' > {output.nucl_qCov}""")
+
+		shell("""blastn -query utils/source_ESTs.fa -db {input.genome_in} -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore sstrand" -evalue {params.evalue} > {output.est_out} """)
+		shell("""cat {output.est_out} | awk '{{print$1,$7,$8,$2,$12,$13}}' | tr " " "\t" | sed -e 's/plus/+/g' | sed -e 's/minus/-/g' > {output.est_qCov}""")
+
+
+# cat scans/assemblies/spades/xLae1.nuclBLAST.out | awk '{print$1,$7,$8,$2,$12,$13,"xLae1"}' | tr " " "\t" | sed -e 's/plus/+/g' | sed -e 's/minus/-/g' 
 
 
 rule scan_all_assemblies:
 	input:
-		peppys = expand("genome_assemblies/spades/{sample}/{sample}.peptBLAST.out", sample=sampname_by_group['all']),
-		nukular = expand("genome_assemblies/spades/{sample}/{sample}.nuclBLAST.out", sample=sampname_by_group['all']),
+		peppys = expand("scans/assemblies/spades/{sample}.peptBLAST.out", sample=sampname_by_group['all']),
+		nukular = expand("scans/assemblies/spades/{sample}.nuclBLAST.out", sample=sampname_by_group['all']),
+		ests = expand("scans/assemblies/spades/{sample}.estBLAST.out", sample=sampname_by_group['all']),
+
 	output:
-		flagout = "utils/flags/genomes_scanned_for_xpod.flag"
+		statout = "summaries/scans/xpod_vs_assemblies.stat"
 	params:
 		runmem_gb=8,
 		runtime="1:00:00",
@@ -351,11 +409,57 @@ rule scan_all_assemblies:
 	message:
 		"Collecting read summaries for all samples ...."
 	run:
-		shell(""" mkdir -p utils/flags/ """)
-		shell(""" touch {output.flagout} """)
+		shell(""" mkdir -p summaries/scans/ ; rm -rf {output.statout} ; """)
+
+		for samp in sampname_by_group['all']:
+			species = sample_by_name[samp]["species"][0]
+			shell(""" cat scans/assemblies/spades/{samp}.peptBLAST.out | wc -l | awk '{{print"{species}\t{samp}\traw\tpeptide\t"$0}}' >> {output.statout}  """)
+			shell(""" cat scans/assemblies/spades/{samp}.nuclBLAST.out | wc -l | awk '{{print"{species}\t{samp}\traw\tnucleotide\t"$0}}' >> {output.statout}  """)
+			shell(""" cat scans/assemblies/spades/{samp}.estBLAST.out | wc -l | awk '{{print"{species}\t{samp}\traw\tEST\t"$0}}' >> {output.statout}  """)
 
 
 
+
+rule FOOG_extractor:#sort BLAST by query start on theory that exon bounaries will come out consistently
+	input:
+		nukular = "scans/assemblies/spades/{sample}.nuclBLAST.out",
+
+	output:
+		foogBed = "scans/assemblies/spades/{sample}.nuclBLAST.FOOG.bed",
+		foogFa = "scans/assemblies/spades/{sample}.nuclBLAST.FOOG.fa",
+	params:
+		runmem_gb=8,
+		runtime="1:00:00",
+		cores=1,
+		clust_misc=""#--cpus-per-task=%s --partition=bigmem --qos bigmem_access" %tuple([8])#[params.cpus_per_task]),
+	message:
+		"Collecting read summaries for all samples ...."
+	run:
+		#shell(""" mkdir -p summaries/scans/ ; rm -rf {output.statout} ; """)
+		shell("""cat {input.nukular}  | sort -k 7 -g | cut -f 2,9,10 | awk '{{print $1,$2<$3?$2:$3,$3<$2?$2:$3,"FOOG_"NR,"{wildcards.sample}"}}' | tr " " "\t"  > {output.foogBed} """)
+		shell("""bedtools getfasta -fi genome_assemblies/spades/{wildcards.sample}/{wildcards.sample}.spades.scaffolds.fa -fo - -bed  {output.foogBed} -name | sed -e "s/>F/>{wildcards.sample}:F/g" > {output.foogFa} """)
+
+
+
+rule FOOGazi_repeater:#sort BLAST by query start on theory that exon bounaries will come out consistently
+	input:
+		foogies = expand("scans/assemblies/spades/{sample}.nuclBLAST.FOOG.fa", sample=sampname_by_group['all']),
+		beds = expand("scans/assemblies/spades/{sample}.nuclBLAST.FOOG.bed", sample=sampname_by_group['all']),
+
+	output:
+		flag = "utils/foog.flag",
+	params:
+		runmem_gb=8,
+		runtime="1:00:00",
+		cores=1,
+		clust_misc=""#--cpus-per-task=%s --partition=bigmem --qos bigmem_access" %tuple([8])#[params.cpus_per_task]),
+	message:
+		"Collecting read summaries for all samples ...."
+	run:
+		shell(""" cat {input.beds} | cut -f 4 | sort | uniq >  scans/assemblies/spades/FOOGs.list """)
+		shell(""" mkdir -p scans/assemblies/spades/FOOGs/ """)
+		shell("""cat scans/assemblies/spades/FOOGs.list | while read -r foog; do cat {input.foogies} | fasta_formatter -t | tr ":" "\t" | grep -w "$foog" | awk '{{print">"$1;print$3}}' > scans/assemblies/spades/FOOGs/"$foog".fa ; done""")
+		shell( """ touch {output.flag}""")
 
 
 # rule write_report:

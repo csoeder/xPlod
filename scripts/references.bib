@@ -48,4 +48,35 @@ url = {https://onlinelibrary.wiley.com/doi/abs/10.1002/dvg.23344},
 volume = {58},
 year = {2020}
 }
+@article{Chen2018,
+abstract = {Motivation: Quality control and preprocessing of FASTQ files are essential to providing clean data for downstream analysis. Traditionally, a different tool is used for each operation, such as quality control, adapter trimming, and quality filtering. These tools are often insufficiently fast as most are developed using high level programming languages (e.g., Python and Java) and provide limited multithreading support. Reading and loading data multiple times also renders preprocessing slow and I/O inefficient. Results: We developed fastp as an ultra-fast FASTQ preprocessor with useful quality control and data-filtering features. It can perform quality control, adapter trimming, quality filtering, per read quality cutting, and many other operations with a single scan of the FASTQ data. It also supports unique molecular identifier preprocessing, poly tail trimming, output splitting, and base correction for paired-end data. It can automatically detect adapters for single-end and paired-end FASTQ data. This tool is developed in C++ and has multithreading support. Based on our evaluation, fastp is 2 to 5 times faster than other FASTQ preprocessing tools such as Trimmomatic or Cutadapt despite performing far more operations than similar tools. Availability and Implementation: The open-source code and corresponding instructions are available at https://github.com/OpenGene/fastp},
+author = {Chen, Shifu and Zhou, Yanqing and Chen, Yaru and Gu, Jia},
+doi = {10.1093/bioinformatics/bty560},
+file = {:Users/csoeder/Papers/Chen et al. - 2018 - Fastp An ultra-fast all-in-one FASTQ preprocessor.pdf:pdf},
+isbn = {9788476662106},
+issn = {14602059},
+journal = {Bioinformatics},
+number = {17},
+pages = {i884--i890},
+pmid = {23766329},
+title = {{Fastp: An ultra-fast all-in-one FASTQ preprocessor}},
+volume = {34},
+year = {2018}
+}
+
+@inproceedings{Mikheenko2018,
+abstract = {Motivation: The emergence of high-throughput sequencing technologies revolutionized genomics in early 2000s. The next revolution came with the era of long-read sequencing. These technological advances along with novel computational approaches became the next step towards the automatic pipelines capable to assemble nearly complete mammalian-size genomes. Results: In this manuscript, we demonstrate performance of the state-of-the-art genome assembly software on six eukaryotic datasets sequenced using different technologies. To evaluate the results, we developed QUAST-LG?a tool that compares large genomic de novo assemblies against reference sequences and computes relevant quality metrics. Since genomes generally cannot be reconstructed completely due to complex repeat patterns and low coverage regions, we introduce a concept of upper bound assembly for a given genome and set of reads, and compute theoretical limits on assembly correctness and completeness. Using QUAST-LG, we show how close the assemblies are to the theoretical optimum, and how far this optimum is from the finished reference.},
+author = {Mikheenko, Alla and Prjibelski, Andrey and Saveliev, Vladislav and Antipov, Dmitry and Gurevich, Alexey},
+booktitle = {Bioinformatics},
+doi = {10.1093/bioinformatics/bty266},
+file = {:Users/csoeder/Papers/Versatile genome assembly evaluation with QUAST-LG.pdf:pdf},
+issn = {14602059},
+month = {jul},
+number = {13},
+pages = {i142--i150},
+title = {{Versatile genome assembly evaluation with QUAST-LG}},
+url = {https://academic.oup.com/bioinformatics/article/34/13/i142/5045727},
+volume = {34},
+year = {2018}
+}
 
